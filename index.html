@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>創業規模評估儀表板 v2.1版本 (已強化風險懲罰)</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }
+        h1 { color: #2c3e50; text-align: center; }
+        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+        .input-group input[type="number"] { width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .result-display { text-align: center; margin-bottom: 20px; }
+        #finalScale { font-weight: bold; font-size: 4em; color: #2c3e50; }
+        .formula { font-style: italic; color: #7f8c8d; margin-top: 10px; text-align: center; }
+        .info { font-size: 0.9em; color: #7f8c8d; margin-top: 5px; }
+        .btn { padding: 10px 15px; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .btn-load { background-color: #3498db; }
+        .btn-load:hover { background-color: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .factors-container { display: flex; justify-content: space-between; gap: 20px; }
+        .factor-column { flex: 1; padding: 15px; border: 1px solid #eee; border-radius: 8px; background-color: #fafafa; min-height: 250px; }
+        .factor-column h3 { margin-top: 0; }
+        .footer-text {
+            text-align: center;
+            margin-top: 40px;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        /* 更新按鈕顏色以與色票一致，增強視覺一致性 */
+        button[data-type="default"] { background-color: #A8403D; } 
+        button[data-type="deep_tech"] { background-color: #9E6FCB; } 
+        button[data-type="hardware"] { background-color: #4C95C8; } 
+        button[data-type="dtc"] { background-color: #7AAB67; } 
+        button[data-type="extreme_leverage"] { background-color: #CC543C; } /* 新增 WeWork 專用顏色 */
+    </style>
+</head>
+<body>
+    <div style="text-align: right; margin-bottom: 10px;">
+        <button id="lang-zh">繁體中文</button>
+        <button id="lang-en">English</button>
+    </div>
+
+    <h1 data-lang-key="title">創業規模評估儀表板 v2.1版本</h1>
+    <p style="text-align: center; color: #aaa; font-size: 0.8em; margin-top: -10px;" data-lang-key="subtitle">已強化風險懲罰和結構性風險定義</p>
+    
+    <div class="result-display">
+        <p class="formula" data-lang-key="formula_desc">一個成功的創業，是「產品市場契合度」與「資源槓桿」的乘積，再乘上「團隊能力」與「風險」的比值。</p>
+        <p class="formula">公式核心: 規模 ≈ (PMF<sup>α</sup> × Leverage<sup>γ</sup>) × (Team<sup>β</sup> / Risk<sup>δ</sup>)</p>
+        <div id="finalScale">...</div>
+    </div>
+
+    <div class="section">
+        <h2 data-lang-key="weights_title">📊 權重指數設定 (初始值與解釋)</h2>
+        <div class="info" data-lang-key="weights_info">請設定各項權重，或載入不同產業的建議值。評分範圍建議為 1.0 至 2.0 之間（確保增長）。</div>
+        <div style="margin-top: 10px;">
+            <button class="btn btn-load" data-type="default" data-lang-key="btn_saas">通用 SaaS/軟體</button>
+            <button class="btn btn-load" data-type="deep_tech" data-lang-key="btn_deep_tech">Deep Tech/生物技術</button>
+            <button class="btn btn-load" data-type="hardware" data-lang-key="btn_hardware">硬體/製造業</button>
+            <button class="btn btn-load" data-type="dtc" data-lang-key="btn_dtc">快速消費品 (DTC)</button>
+            <button class="btn btn-load" data-type="extreme_leverage" data-lang-key="btn_extreme_leverage">極端槓桿/房地產 (WeWork)</button>
+            <button class="btn" id="saveSettings" style="background-color: #27ae60;" data-lang-key="btn_save">儲存設定</button>
+            <button class="btn" id="loadSettings" style="background-color: #f39c12;" data-lang-key="btn_load">讀取設定</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th data-lang-key="th_index">指數 (權重)</th>
+                    <th data-lang-key="th_initial">初始值</th>
+                    <th data-lang-key="th_explanation">標準化解釋</th>
+                    <th data-lang-key="th_standard">合理標準</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td title="α (PMF) - 產品市場契合度權重&#10;解釋: 這是模型的核心放大器。PMF越高，帶來的網絡效應或病毒式傳播效應就越大。&#10;---&#10;分數參考:&#10;1.0: 線性增長。&#10;1.3 (SaaS): 網絡效應或病毒式傳播的基礎。&#10;1.5 (DTC): 強品牌效應，高用戶忠誠度。" data-lang-key="alpha_title">α (PMF)</td>
+                    <td><input type="number" id="alpha" value="1.3" step="0.1"></td>
+                    <td data-lang-key="alpha_explanation">核心放大器。產品越契合市場，帶來的增長是超線性的。</td>
+                    <td data-lang-key="alpha_standard">最高權重。好的 PMF 能讓所有資源的價值最大化。</td>
+                </tr>
+                <tr>
+                    <td title="γ (Leverage) - 資源槓桿權重&#10;解釋: 代表資金、人脈等資源的投入能帶來多大規模的增長。對於純軟體，其價值應為 1.0 (線性增長)。當行業需要巨額資金或實體壁壘時，應調高。&#10;---&#10;分數參考:&#10;1.0 (SaaS): 邊際成本低，資金效益為線性。&#10;1.2 (Deep Tech): 早期投入巨大。&#10;1.5 (硬體): 資金能帶來顯著的規模經濟效應，例如半導體、航太、能源車。" data-lang-key="gamma_title">γ (Leverage)</td>
+                    <td><input type="number" id="gamma" value="1.0" step="0.1"></td>
+                    <td data-lang-key="gamma_explanation">資源乘數。資金和資源投入與規模大致成正比。</td>
+                    <td data-lang-key="gamma_standard">中等權重 (1.0)。建議不低於 1.0。</td>
+                </tr>
+                <tr>
+                    <td title="β (Team) - 團隊能力權重&#10;解釋: 優秀團隊不僅能高效執行，還能在逆境中找到出路。當產品的技術深度或營運複雜度極高，或市場不確定性大時，該權重應提高。&#10;---&#10;分數參考:&#10;1.2 (通用): 優秀團隊是基礎。&#10;1.5 (Deep Tech): 頂尖科學家和工程師團隊是成功的絕對核心。" data-lang-key="beta_title">β (Team)</td>
+                    <td><input type="number" id="beta" value="1.2" step="0.1"></td>
+                    <td data-lang-key="beta_explanation">執行與緩衝放大器。優秀團隊能將計畫執行到位，並提高風險管理能力。</td>
+                    <td data-lang-key="beta_standard">高權重。團隊是唯一能適應混沌市場的要素。</td>
+                </tr>
+                <tr>
+                    <td title="δ (Risk) - 風險係數權重&#10;解釋: 這是模型的懲罰項。風險越高，對最終規模的負面影響就越大，且通常是指數級的。&#10;---&#10;分數參考:&#10;1.2 (DTC): 市場風險為主。&#10;1.5 (通用): 綜合風險。&#10;2.0 (極端槓桿): 技術、市場、監管等多重高風險疊加（如 WeWork）。" data-lang-key="delta_title">δ (Risk)</td>
+                    <td><input type="number" id="delta" value="1.5" step="0.1"></td>
+                    <td data-lang-key="delta_explanation">強力懲罰項。創業失敗常因風險失控，因此風險帶來的負面影響是指數級的。</td>
+                    <td data-lang-key="delta_standard">最高負權重。確保模型能篩選掉高風險、高槓桿的項目。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2 data-lang-key="factors_title">📝 創業要素評分 (1-10)</h2>
+        <div class="info" data-lang-key="factors_info">請為您的創業項目在以下各個維度評分，1 為最低分，10 為最高分。</div>
+        <div class="factors-container">
+            <div class="factor-column">
+                <h3 title="公式: (P1 × P2 × P3)^(1/3)&#10;白話解釋: 你的產品有多被市場需要？&#10;這三點的綜效決定了產品的市場立足點。" data-lang-key="pmf_title">1. 產品市場契合度 (PMF)</h3>
+                <div class="input-group">
+                    <label title="你的產品解決的問題有多痛？&#10;1分: 可有可無，錦上添花。&#10;10分: 解決了攸關生死的痛點，是不可或缺的止痛藥。" data-lang-key="p1_label">痛點深度 (P1)</label> <input type="number" id="p1" value="5" min="1" max="10">
+                    <label title="你的產品和競爭對手有何不同？&#10;1分: 只是個模仿者，沒有特色。&#10;10分: 開創了全新的品類或商業模式，具有強大護城河。" data-lang-key="p2_label">產品差異化 (P2)</label> <input type="number" id="p2" value="5" min="1" max="10">
+                    <label title="團隊根據用戶反饋改進產品的速度與品質如何？&#10;1分: 很少更新，對用戶建議反應遲鈍。&#10;10分: 能快速、高品質地迭代，甚至超越用戶預期。" data-lang-key="p3_label">迭代品質 (P3)</label> <input type="number" id="p3" value="5" min="1" max="10">
+                </div>
+            </div>
+            <div class="factor-column">
+                <h3 data-lang-key="leverage_title">2. 時機與資源槓桿 (Leverage)</h3>
+                <div class="input-group">
+                    <label title="現在是做這件事的最好時機嗎？&#10;1分: 為時過早或已錯過風口。&#10;10分: 完美切入技術、法規或社會趨勢的轉折點。" data-lang-key="l1_label">時機正確性 (L1)</label> <input type="number" id="l1" value="5" min="1" max="10">
+                    <label title="你能接觸到多少有影響力的人？（軟資源之一）&#10;1分: 幾乎沒有行業人脈。&#10;10分: 擁有能直接促成合作、投資或招聘的頂級人脈。" data-lang-key="l2_label">人脈資本 (L2)</label> <input type="number" id="l2" value="5" min="1" max="10">
+                    <label title="你能調動多少資金？（硬資源）&#10;1分: 僅有個人積蓄，資金極度緊張。&#10;10分: 擁有知名創投或財團的強力資金支持。" data-lang-key="l3_label">硬資源 (L3)</label> <input type="number" id="l3" value="5" min="1" max="10">
+                    <label title="你擁有的無形資產價值多高？（軟資源之二）&#10;例如品牌、專利、社群、IP等。&#10;1分: 品牌無人知曉，沒有特殊資源。&#10;10分: 擁有強大的品牌護城河或高價值的核心專利。" data-lang-key="l4_label">軟資源 (L4)</label> <input type="number" id="l4" value="5" min="1" max="10">
+                </div>
+            </div>
+            <div class="factor-column">
+                <h3 data-lang-key="team_title">3. 團隊能力 (Team)</h3>
+                <div class="input-group">
+                    <label title="團隊將想法變為現實的能力有多強？&#10;1分: 想法很多，但產出很少。&#10;10分: 總能以超乎預期的速度和品質交付成果。" data-lang-key="t1_label">執行力 (T1)</label> <input type="number" id="t1" value="5" min="1" max="10">
+                    <label title="團隊成員的技能和特質是否互補？&#10;1分: 成員背景相似，存在明顯的技能短板。&#10;10分: 核心成員是「駭客、妖孽、大師」的黃金組合。" data-lang-key="t2_label">核心互補性 (T2)</label> <input type="number" id="t2" value="5" min="1" max="10">
+                    <label title="團隊的目標是否遠大且經驗是否匹配？&#10;1分: 只有短期目標，缺乏行業經驗。&#10;10分: 創辦人對行業有深刻洞見，且擁有成功的連續創業經驗。" data-lang-key="t3_label">願景與經驗 (T3)</label> <input type="number" id="t3" value="5" min="1" max="10">
+                    <label title="團隊內外部的信任關係有多穩固？&#10;1分: 內部溝通不暢，創辦人之間存在分歧。&#10;10分: 團隊凝聚力極強，且在投資人和合作夥伴中有良好聲譽。" data-lang-key="t4_label">信任資本 (T4)</label> <input type="number" id="t4" value="5" min="1" max="10">
+                </div>
+            </div>
+            <div class="factor-column">
+                <h3 data-lang-key="risk_title">4. 競爭與風險係數 (Risk)</h3>
+                <div class="input-group">  
+                    <label title="市場上的競爭有多激烈？&#10;1分: 全新的藍海市場，幾乎沒有直接競爭者。&#10;10分: 巨頭林立的紅海市場，生存空間極小。 " data-lang-key="r1_label">競爭強度 (R1)</label> <input type="number" id="r1" value="5" min="1" max="10">
+                    <label title="你的業務是否面臨法規、政策、宏觀經濟或結構性風險？&#10;1分: 幾乎沒有監管，受到政策鼓勵。&#10;10分: 處於法律灰色地帶，或商業模式有致命結構性缺陷（例如高固定成本、低毛利）。" data-lang-key="r2_label">外部環境與結構性風險 (R2)</label> <input type="number" id="r2" value="5" min="1" max="10">
+                    <label title="公司內部是否存在可能導致失敗的隱患？&#10;1分: 內部管理精實，財務狀況健康，治理結構清晰。&#10;10分: 存在致命的內部問題（如創辦人失和、管理混亂、**過度依賴外部融資導致的資金鍊斷裂**）。" data-lang-key="r3_label">公司治理與資金鍊風險 (R3)</label> <input type="number" id="r3" value="5" min="1" max="10">
+                </div>  
+            </div>  
+        </div> 
+    </div>
+
+    <div class="section">
+        <h2 data-lang-key="explanation_title">🧠 智能解釋</h2>
+        <div id="smart-explanation" style="padding: 15px; background-color: #f8f9fa; border-radius: 8px; min-height: 100px; white-space: pre-wrap; line-height: 1.6;">...</div>
+    </div>
+
+    <div class="section">
+        <h2 data-lang-key="cases_title">📜 案例評分邏輯解釋</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th data-lang-key="th_company">公司</th>
+                    <th data-lang-key="th_element">要素</th>
+                    <th data-lang-key="th_score">評分 (1-10)</th>
+                    <th data-lang-key="th_logic">評分邏輯解釋</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td rowspan="4">
+                        <strong>Notion</strong>
+                        <br><br>
+                        <button class="btn btn-load" onclick="loadCase('notion')" data-lang-key="btn_load_case">載入此案例</button>
+                    </td>
+                    <td>PMF (高)</td>
+                    <td data-lang-key="notion_pmf_score">痛點(9), 差異化(9), 迭代(9)</td>
+                    <td data-lang-key="notion_pmf">核心：解決了整合混亂的深層痛點，高度客製化是極強差異化。迭代速度快且品質高（京都重生）。</td>
+                </tr>
+                <tr>
+                    <td>Team (高)</td>
+                    <td data-lang-key="notion_team_score">執行(9), 互補(8), 願景(9), 信任(9)</td>
+                    <td data-lang-key="notion_team">緩衝：創辦人能 Pivot、重寫程式碼，具備超強執行力。核心成員間信任度高，是其度過危機的關鍵。</td>
+                </tr>
+                <tr>
+                    <td>Leverage (中低)</td>
+                    <td data-lang-key="notion_leverage_score">時機(8), 人脈(5), 硬(4), 軟(9)</td>
+                    <td data-lang-key="notion_leverage">效率：早期硬資源（資金）極低（4分），但軟資源（社群、IP 價值）極高（9分），效率極高。</td>
+                </tr>
+                <tr>
+                    <td>Risk (低)</td>
+                    <td data-lang-key="notion_risk_score">競爭(5), 結構(3), 治理(2)</td>
+                    <td data-lang-key="notion_risk">可控：儘管面臨 Google/Microsoft 競爭，但 SaaS 結構性風險低，且內部管理極為精實（低風險）。</td>
+                </tr>
+                <tr>
+                    <td rowspan="4">
+                        <strong>WeWork</strong>
+                        <br><br>
+                        <button class="btn btn-load" onclick="loadCase('wework')" data-lang-key="btn_load_case_wework">載入此案例</button>
+                    </td>
+                    <td>PMF (中)</td>
+                    <td data-lang-key="wework_pmf_score">痛點(7), 差異化(6), 迭代(4)</td>
+                    <td data-lang-key="wework_pmf">虛高：靈活辦公需求確實存在，但本質是二房東，壁壘低，迭代專注於擴張而非產品優化。</td>
+                </tr>
+                <tr>
+                    <td>Team (極低)</td>
+                    <td data-lang-key="wework_team_score">執行(5), 互補(4), 願景(7), 信任(3)</td>
+                    <td data-lang-key="wework_team">缺陷：願景高，但核心問題在於公司治理和執行效率極低（信任資本僅 3分）。</td>
+                </tr>
+                <tr>
+                    <td>Leverage (極高)</td>
+                    <td data-lang-key="wework_leverage_score">時機(8), 人脈(9), 硬(9), 軟(5)</td>
+                    <td data-lang-key="wework_leverage">槓桿：Adam Neumann 人脈和軟銀注資（硬資源）極高，但效率極差。</td>
+                </tr>
+                <tr>
+                    <td>Risk (極高)</td>
+                    <td data-lang-key="wework_risk_score">競爭(8), 結構(8), 治理(9)</td>
+                    <td data-lang-key="wework_risk">失控：競爭激烈，**結構性風險（長期租賃債務）**和**治理風險（CEO 私利、資金鍊）**爆表（9分）。</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+   <div class="footer-text">nowplaygames.com </div>
+
+    <script>
+        let currentLang = 'zh-TW';
+
+        const langData = {
+            "zh-TW": {
+                "title": "創業規模評估儀表板 v2.1版本",
+                "subtitle": "已強化風險懲罰和結構性風險定義",
+                "formula_desc": "一個成功的創業，是「產品市場契合度」與「資源槓桿」的乘積，再乘上「團隊能力」與「風險」的比值。",
+                "weights_title": "📊 權重指數設定 (初始值與解釋)",
+                "weights_info": "請設定各項權重，或載入不同產業的建議值。評分範圍建議為 1.0 至 2.0 之間（確保增長）。",
+                "btn_saas": "通用 SaaS/軟體",
+                "btn_deep_tech": "Deep Tech/生物技術",
+                "btn_hardware": "硬體/製造業",
+                "btn_dtc": "快速消費品 (DTC)",
+                "btn_extreme_leverage": "極端槓桿/房地產 (WeWork)",
+                "btn_save": "儲存設定",
+                "btn_load": "讀取設定",
+                "th_index": "指數 (權重)",
+                "th_initial": "初始值",
+                "th_explanation": "標準化解釋",
+                "th_standard": "合理標準",
+                "alpha_title": "α (PMF)",
+                "alpha_explanation": "核心放大器。產品越契合市場，帶來的增長是超線性的。",
+                "alpha_standard": "最高權重。好的 PMF 能讓所有資源的價值最大化。",
+                "gamma_title": "γ (Leverage)",
+                "gamma_explanation": "資源乘數。資金和資源投入與規模大致成正比。",
+                "gamma_standard": "中等權重 (1.0)。建議不低於 1.0。",
+                "beta_title": "β (Team)",
+                "beta_explanation": "執行與緩衝放大器。優秀團隊能將計畫執行到位，並提高風險管理能力。",
+                "beta_standard": "高權重。團隊是唯一能適應混沌市場的要素。",
+                "delta_title": "δ (Risk)",
+                "delta_explanation": "強力懲罰項。創業失敗常因風險失控，因此風險帶來的負面影響是指數級的。",
+                "delta_standard": "最高負權重。確保模型能篩選掉高風險、高槓桿的項目。",
+                "factors_title": "📝 創業要素評分 (1-10)",
+                "factors_info": "請為您的創業項目在以下各個維度評分，1 為最低分，10 為最高分。",
+                "pmf_title": "1. 產品市場契合度 (PMF)",
+                "p1_label": "痛點深度 (P1)",
+                "p2_label": "產品差異化 (P2)",
+                "p3_label": "迭代品質 (P3)",
+                "leverage_title": "2. 時機與資源槓桿 (Leverage)",
+                "l1_label": "時機正確性 (L1)",
+                "l2_label": "人脈資本 (L2)",
+                "l3_label": "硬資源 (L3)",
+                "l4_label": "軟資源 (L4)",
+                "team_title": "3. 團隊能力 (Team)",
+                "t1_label": "執行力 (T1)",
+                "t2_label": "核心互補性 (T2)",
+                "t3_label": "願景與經驗 (T3)",
+                "t4_label": "信任資本 (T4)",
+                "risk_title": "4. 競爭與風險係數 (Risk)",
+                "r1_label": "競爭強度 (R1)",
+                "r2_label": "外部環境與結構性風險 (R2)",
+                "r3_label": "公司治理與資金鍊風險 (R3)",
+                "explanation_title": "🧠 智能解釋",
+                "cases_title": "📜 案例評分邏輯解釋",
+                "th_company": "公司",
+                "th_element": "要素",
+                "th_score": "評分 (1-10)",
+                "th_logic": "評分邏輯解釋",
+                "btn_load_case": "載入此案例",
+                "btn_load_case_wework": "載入此案例",
+                "notion_pmf_score": "痛點(9), 差異化(9), 迭代(9)",
+                "notion_team_score": "執行(9), 互補(8), 願景(9), 信任(9)",
+                "notion_leverage_score": "時機(8), 人脈(5), 硬(4), 軟(9)",
+                "notion_risk_score": "競爭(5), 結構(3), 治理(2)",
+                "wework_pmf_score": "痛點(7), 差異化(6), 迭代(4)",
+                "wework_team_score": "執行(5), 互補(4), 願景(7), 信任(3)",
+                "wework_leverage_score": "時機(8), 人脈(9), 硬(9), 軟(5)",
+                "wework_risk_score": "競爭(8), 結構(8), 治理(9)",
+                "notion_pmf": "核心：解決了整合混亂的深層痛點，高度客製化是極強差異化。迭代速度快且品質高（京都重生）。",
+                "notion_team": "緩衝：創辦人能 Pivot、重寫程式碼，具備超強執行力。核心成員間信任度高，是其度過危機的關鍵。",
+                "notion_leverage": "效率：早期硬資源（資金）極低（4分），但軟資源（社群、IP 價值）極高（9分），效率極高。",
+                "notion_risk": "可控：儘管面臨 Google/Microsoft 競爭，但 SaaS 結構性風險低，且內部管理極為精實（低風險）。",
+                "wework_pmf": "虛高：靈活辦公需求確實存在，但本質是二房東，壁壘低，迭代專注於擴張而非產品優化。",
+                "wework_team": "缺陷：願景高，但核心問題在於公司治理和執行效率極低（信任資本僅 3分）。",
+                "wework_leverage": "槓桿：Adam Neumann 人脈和軟銀注資（硬資源）極高，但效率極差。",
+                "wework_risk": "失控：競爭激烈，**結構性風險（長期租賃債務）**和**治理風險（CEO 私利、資金鍊）**爆表（9分）。"
+            },
+            "en": {
+                "title": "Startup Scale Evaluation Dashboard v2.1",
+                "subtitle": "Enhanced with risk penalties and structural risk definitions",
+                "formula_desc": "A successful startup is the product of 'Product-Market Fit' and 'Resource Leverage', multiplied by the ratio of 'Team Competency' to 'Systemic Risk'.",
+                "weights_title": "📊 Weight Index Settings (Initial Values & Explanations)",
+                "weights_info": "Please set the weights for each factor, or load recommended values for different industries. The recommended scoring range is between 1.0 and 2.0 (to ensure growth).",
+                "btn_saas": "General SaaS/Software",
+                "btn_deep_tech": "Deep Tech/Biotech",
+                "btn_hardware": "Hardware/Manufacturing",
+                "btn_dtc": "Direct-to-Consumer (DTC)",
+                "btn_extreme_leverage": "Extreme Leverage/Real Estate (WeWork)",
+                "btn_save": "Save Settings",
+                "btn_load": "Load Settings",
+                "th_index": "Index (Weight)",
+                "th_initial": "Initial Value",
+                "th_explanation": "Standardized Explanation",
+                "th_standard": "Reasonable Standard",
+                "alpha_title": "α (PMF)",
+                "alpha_explanation": "Core Amplifier. The better the product fits the market, the more super-linear the growth.",
+                "alpha_standard": "Highest Weight. Good PMF maximizes the value of all resources.",
+                "gamma_title": "γ (Leverage)",
+                "gamma_explanation": "Resource Multiplier. The scale is roughly proportional to the investment of capital and resources.",
+                "gamma_standard": "Medium Weight (1.0). Recommended not to be lower than 1.0.",
+                "beta_title": "β (Team)",
+                "beta_explanation": "Execution & Buffer Amplifier. An excellent team can execute plans effectively and improve risk management.",
+                "beta_standard": "High Weight. The team is the only element that can adapt to a chaotic market.",
+                "delta_title": "δ (Risk)",
+                "delta_explanation": "Strong Penalty Term. Startup failures are often due to uncontrolled risks, so the negative impact of risk is exponential.",
+                "delta_standard": "Highest Negative Weight. Ensures the model filters out high-risk, high-leverage projects.",
+                "factors_title": "📝 Startup Factor Scoring (1-10)",
+                "factors_info": "Please rate your startup project on the following dimensions, from 1 (lowest) to 10 (highest).",
+                "pmf_title": "1. Product-Market Fit (PMF)",
+                "p1_label": "Pain Point Depth (P1)",
+                "p2_label": "Product Differentiation (P2)",
+                "p3_label": "Iteration Quality (P3)",
+                "leverage_title": "2. Timing and Resource Leverage (Leverage)",
+                "l1_label": "Timing Correctness (L1)",
+                "l2_label": "Network Capital (L2)",
+                "l3_label": "Hard Resources (L3)",
+                "l4_label": "Soft Resources (L4)",
+                "team_title": "3. Team Capability",
+                "t1_label": "Execution Ability (T1)",
+                "t2_label": "Core Complementarity (T2)",
+                "t3_label": "Vision & Experience (T3)",
+                "t4_label": "Trust Capital (T4)",
+                "risk_title": "4. Competition & Risk Factor",
+                "r1_label": "Competition Intensity (R1)",
+                "r2_label": "External Environment & Structural Risk (R2)",
+                "r3_label": "Corporate Governance & Funding Chain Risk (R3)",
+                "explanation_title": "🧠 Smart Explanation",
+                "cases_title": "📜 Case Scoring Logic Explanation",
+                "th_company": "Company",
+                "th_element": "Factor",
+                "th_score": "Score (1-10)",
+                "th_logic": "Scoring Logic Explanation",
+                "btn_load_case": "Load This Case",
+                "btn_load_case_wework": "Load This Case",
+                "notion_pmf_score": "Pain(9), Diff(9), Iteration(9)",
+                "notion_team_score": "Exec(9), Comp(8), Vision(9), Trust(9)",
+                "notion_leverage_score": "Timing(8), Network(5), Hard(4), Soft(9)",
+                "notion_risk_score": "Comp(5), Struct(3), Gov(2)",
+                "wework_pmf_score": "Pain(7), Diff(6), Iteration(4)",
+                "wework_team_score": "Exec(5), Comp(4), Vision(7), Trust(3)",
+                "wework_leverage_score": "Timing(8), Network(9), Hard(9), Soft(5)",
+                "wework_risk_score": "Comp(8), Struct(8), Gov(9)",
+                "notion_pmf": "Core: Solved the deep pain of integration chaos; high customization is a strong differentiation. Fast and high-quality iteration (Kyoto rebirth).",
+                "notion_team": "Buffer: Founders could pivot, rewrite code, showing super execution. High trust among core members was key to surviving crises.",
+                "notion_leverage": "Efficiency: Very low early hard resources (funding) (4 pts), but extremely high soft resources (community, IP value) (9 pts), highly efficient.",
+                "notion_risk": "Controllable: Despite competition from Google/Microsoft, SaaS has low structural risk, and internal management is extremely lean (low risk).",
+                "wework_pmf": "Inflated: Flexible office demand exists, but it's essentially a subleasing model with low barriers. Iteration focused on expansion, not product optimization.",
+                "wework_team": "Flawed: High vision, but core issues in corporate governance and extremely low execution efficiency (Trust Capital only 3 pts).",
+                "wework_leverage": "Leverage: Adam Neumann's network and SoftBank's funding (hard resources) were extremely high, but efficiency was extremely poor.",
+                "wework_risk": "Out of Control: Fierce competition, **structural risks (long-term lease debt)** and **governance risks (CEO's self-interest, funding chain)** were off the charts (9 pts)."
+            }
+        };
+
+        const explanationTemplates = {
+            "zh-TW": {
+                pmf: {
+                    p1: {
+                        low: ["似乎只解決了次要問題，市場需求可能不夠迫切。", "產品對應的痛點較淺，用戶付費意願可能不高。", "未能觸及市場的核心痛點，吸引力有限。"],
+                        mid: ["成功捕捉到一個顯著的市場痛點，具備良好的商業潛力。", "解決了用戶的一大困擾，產品定位明確。", "產品切入點不錯，有效緩解了市場上的一個麻煩。"],
+                        high: ["直擊市場最深層的痛點，是不可或缺的解決方案。", "解決了攸關用戶核心利益的關鍵問題，具有極強的市場號召力。", "產品如同止痛藥，精準地解決了市場的燃眉之急。"]
+                    },
+                    p2: {
+                        low: ["與市場現有產品高度同質化，缺乏獨特競爭力。", "產品特色不明顯，容易陷入價格戰。", "未能建立有效的護城河，模仿門檻較低。"],
+                        mid: ["在功能或體驗上形成了局部優勢，具備一定的差異化。", "產品有獨特的亮點，能在特定市場中脫穎而出。", "相較於競爭對手，提供了更佳的用戶體驗。"],
+                        high: ["開創了全新的產品範式或商業模式，具有顛覆性潛力。", "建立了強大的品牌或技術壁壘，難以被複製。", "產品的獨特性極強，重新定義了市場格局。"]
+                    },
+                    p3: {
+                        low: ["產品迭代緩慢，對市場反應遲鈍。", "更新頻率和品質都有待提高，未能跟上用戶期望。", "團隊在產品演進上似乎遇到了瓶頸。"],
+                        mid: ["團隊能夠穩定地推出更新，並持續優化核心功能。", "具備可靠的迭代能力，能逐步完善產品。", "產品正走在一個穩健的改進軌道上。"],
+                        high: ["展現了卓越的迭代速度與品質，總能超越用戶預期。", "團隊對產品的打磨精益求精，能快速響應並引領市場需求。", "擁有頂級的產品開發能力，進化速度驚人。"]
+                    }
+                },
+                leverage: {
+                    l1: {
+                        low: ["可能為時過早，市場尚未準備好，或是已經錯過了最佳風口。", "進入時機不佳，面臨著教育市場或追趕領先者的雙重挑戰。", "當前的市場環境對此項目構成較大阻力。"],
+                        mid: ["切入了一個正在成長的市場，時機點尚可。", "抓住了市場發展的趨勢，具備順風而行的潛力。", "市場條件基本成熟，為項目發展提供了良好基礎。"],
+                        high: ["完美踩在技術、政策或社會趨勢的轉折點上，佔盡天時。", "如同站在風口上，能以極高的效率獲取資源和用戶。", "進入時機堪稱典範，最大化了成功的可能性。"]
+                    },
+                    l2_l3_l4: {
+                        low: ["在人脈、資金和品牌等資源上都較為匱乏，初期發展將充滿挑戰。", "資源基礎薄弱，需要精打細算，謹慎前行。", "缺乏足夠的外部資源支持，增長將主要依賴內生動力。"],
+                        mid: ["具備一定的啟動資源，能夠支撐產品完成初步的市場驗證。", "在資金、人脈或品牌方面擁有部分優勢，為起步提供了幫助。", "資源狀況尚可，能夠應對早期的基本運營需求。"],
+                        high: ["擁有強大的人脈網絡、充裕的資金儲備或卓越的品牌資產，競爭優勢顯著。", "資源配置極佳，為規模化擴張鋪平了道路。", "得到了頂級投資人或關鍵行業夥伴的強力支持。"]
+                    }
+                },
+                team: {
+                    t1_t2: {
+                        low: ["團隊在執行力上存在短板，或核心成員技能重疊，缺乏互補性。", "想法與現實產出之間存在較大差距，團隊協作效率有待提升。", "團隊結構不夠完整，可能難以應對複雜的挑戰。"],
+                        mid: ["團隊執行力可靠，成員各有所長，能夠勝任核心任務。", "具備將戰略轉化為行動的實力，團隊配置較為均衡。", "這是一個分工明確、執行穩健的團隊。"],
+                        high: ["擁有頂級的執行力，總能高效地將想法變為現實，且核心成員能力高度互補，是黃金組合。", "團隊不僅執行力爆表，成員間的化學反應也極佳，能爆發出1+1>2的能量。", "這是一支既能仰望星空，又能腳踏實地的夢幻團隊。"]
+                    },
+                    t3_t4: {
+                        low: ["團隊缺乏清晰的長期願景，或內部信任基礎薄弱，存在溝通障礙。", "創辦人對行業的洞察不夠深刻，或團隊凝聚力不足。", "目標的模糊與信任的缺失是團隊前進的巨大隱患。"],
+                        mid: ["團隊擁有明確的奮鬥目標和行業經驗，內部溝通順暢。", "創辦人具備行業洞察力，團隊凝聚力良好。", "這是一個目標一致且互相信任的團隊，具備持續作戰的能力。"],
+                        high: ["創辦人對行業有著先知般的洞見，並能將其化為團隊的共同信仰，內部信任堅不可摧。", "團隊的願景極具感召力，且信任資本雄厚，能吸引頂尖人才並度過危機。", "這是一支使命驅動、高度團結的隊伍。"]
+                    }
+                },
+                risk: {
+                    r1_r2_r3: {
+                        low: ["處於藍海市場，幾乎沒有監管風險，且內部管理精實，整體風險極低。", "項目的安全邊際很高，發展環境相對優越。", "團隊成功地將風險係數降至最低，為高速發展創造了條件。"],
+                        mid: ["風險處於可控範圍，雖然存在競爭和不確定性，但團隊有應對策略。", "項目面臨的內外部風險在行業平均水平，需要謹慎管理。", "團隊對主要風險有清醒的認識，並已著手進行規避。"],
+                        high: ["項目面臨激烈的市場競爭、不明朗的政策風險或嚴重的內部問題，風險極高。", "前進的道路上佈滿荊棘，任何一個風險點都可能導致失敗。", "項目的脆弱性較高，抗風險能力不足。"]
+                    }
+                },
+                summary_keys: {
+                    pmf: "產品市場契合度:",
+                    leverage: "時機與資源:",
+                    team: "團隊能力:",
+                    risk: "綜合風險:"
+                }
+            },
+            "en": {
+                pmf: {
+                    p1: {
+                        low: ["Seems to only solve a minor problem; market demand may not be urgent enough.", "The product addresses a shallow pain point; user willingness to pay might be low.", "Fails to touch the core pain points of the market, limited appeal."],
+                        mid: ["Successfully captures a significant market pain point, showing good business potential.", "Solves a major user frustration, with clear product positioning.", "Good market entry point, effectively alleviating a market hassle."],
+                        high: ["Directly hits the deepest market pain points, an indispensable solution.", "Solves a key issue related to users' core interests, with strong market appeal.", "The product is like a painkiller, precisely addressing an urgent market need."]
+                    },
+                    p2: {
+                        low: ["Highly homogeneous with existing products, lacking unique competitiveness.", "Product features are not distinct, easily falling into price wars.", "Fails to build an effective moat, low barrier to imitation."],
+                        mid: ["Forms a partial advantage in function or experience, with some differentiation.", "The product has unique highlights, able to stand out in specific markets.", "Offers a better user experience compared to competitors."],
+                        high: ["Creates a new product paradigm or business model, with disruptive potential.", "Establishes strong brand or technical barriers, difficult to replicate.", "The product's uniqueness is extremely strong, redefining the market landscape."]
+                    },
+                    p3: {
+                        low: ["Slow product iteration, unresponsive to market feedback.", "Update frequency and quality need improvement, failing to meet user expectations.", "The team seems to have hit a bottleneck in product evolution."],
+                        mid: ["The team can steadily release updates and continuously optimize core functions.", "Possesses reliable iteration capabilities, able to gradually improve the product.", "The product is on a steady path of improvement."],
+                        high: ["Demonstrates excellent iteration speed and quality, always exceeding user expectations.", "The team is meticulous in polishing the product, able to quickly respond to and lead market demand.", "Possesses top-tier product development capabilities, with an amazing evolution speed."]
+                    }
+                },
+                leverage: {
+                    l1: {
+                        low: ["May be too early, the market is not ready, or the best window has been missed.", "Poor entry timing, facing the dual challenges of educating the market or catching up to leaders.", "The current market environment poses significant resistance to this project."],
+                        mid: ["Enters a growing market, the timing is acceptable.", "Catches the trend of market development, with the potential to ride the wave.", "Market conditions are basically mature, providing a good foundation for project development."],
+                        high: ["Perfectly timed at the turning point of technology, policy, or social trends, having a supreme advantage.", "Like standing in the wind, able to acquire resources and users with extremely high efficiency.", "The entry timing is exemplary, maximizing the probability of success."]
+                    },
+                    l2_l3_l4: {
+                        low: ["Lacking in resources like network, funding, and brand, initial development will be challenging.", "Weak resource base, requiring careful planning and cautious progress.", "Lack of sufficient external resource support; growth will mainly rely on internal momentum."],
+                        mid: ["Has certain startup resources, able to support initial market validation of the product.", "Has some advantages in funding, network, or brand, providing help for the start.", "Resource situation is acceptable, able to meet basic operational needs in the early stage."],
+                        high: ["Possesses a strong network, ample funding reserves, or excellent brand assets, with a significant competitive advantage.", "Excellent resource allocation, paving the way for scalable expansion.", "Strongly supported by top investors or key industry partners."]
+                    }
+                },
+                team: {
+                    t1_t2: {
+                        low: ["The team has shortcomings in execution, or core members' skills overlap, lacking complementarity.", "There is a large gap between ideas and actual output; team collaboration efficiency needs improvement.", "The team structure is incomplete, may struggle to handle complex challenges."],
+                        mid: ["Reliable team execution, members have their own strengths, capable of handling core tasks.", "Has the ability to translate strategy into action, with a relatively balanced team configuration.", "This is a team with clear division of labor and steady execution."],
+                        high: ["Possesses top-tier execution, always efficiently turning ideas into reality, and core members' abilities are highly complementary, a golden combination.", "The team not only has explosive execution but also excellent chemistry among members, creating synergy of 1+1>2.", "This is a dream team that can both aim for the stars and keep its feet on the ground."]
+                    },
+                    t3_t4: {
+                        low: ["The team lacks a clear long-term vision, or the internal trust foundation is weak, with communication barriers.", "The founder's insight into the industry is not deep enough, or team cohesion is insufficient.", "Vague goals and lack of trust are major obstacles to the team's progress."],
+                        mid: ["The team has clear goals and industry experience, with smooth internal communication.", "The founder has industry insight, and team cohesion is good.", "This is a team with aligned goals and mutual trust, capable of sustained effort."],
+                        high: ["The founder has a prophetic insight into the industry and can turn it into a common belief for the team, with unbreakable internal trust.", "The team's vision is highly inspiring, and its trust capital is strong, able to attract top talent and overcome crises.", "This is a mission-driven, highly united team."]
+                    }
+                },
+                risk: {
+                    r1_r2_r3: {
+                        low: ["In a blue ocean market, with almost no regulatory risk, and lean internal management, overall risk is extremely low.", "The project has a high margin of safety, with a relatively favorable development environment.", "The team has successfully minimized the risk factor, creating conditions for rapid development."],
+                        mid: ["Risks are within a controllable range; although there is competition and uncertainty, the team has coping strategies.", "The internal and external risks faced by the project are at the industry average level, requiring careful management.", "The team has a clear understanding of the main risks and has begun to mitigate them."],
+                        high: ["The project faces fierce market competition, uncertain policy risks, or serious internal problems, with extremely high risk.", "The path forward is full of thorns; any single risk point could lead to failure.", "The project's vulnerability is high, with insufficient risk resistance."]
+                    }
+                },
+                summary_keys: {
+                    pmf: "Product-Market Fit:",
+                    leverage: "Timing & Resources:",
+                    team: "Team Capability:",
+                    risk: "Comprehensive Risk:"
+                }
+            }
+        };
+
+       const scoreColors = [
+           "#A8403D", "#CC543C", "#C8703B", "#B77A77", "#C68EA6", 
+           "#9E6FCB", "#6687C8", "#4C95C8", "#60A7A8", "#7AAB67"
+       ];
+
+       function updateInputColors() {
+           const inputs = document.querySelectorAll('.factors-container input[type="number"]');
+           inputs.forEach(input => {
+               const value = parseInt(input.value);
+               if (value >= 1 && value <= 10) {
+                   input.style.backgroundColor = scoreColors[value - 1];
+               } else {
+                   input.style.backgroundColor = '';
+               }
+           });
+       }
+
+        function getVal(id) {
+            const value = parseFloat(document.getElementById(id).value);
+            if (isNaN(value) || value < 1) return 1; 
+            return value;
+        }
+
+        function generateExplanation() {
+            const explanations = explanationTemplates[currentLang];
+            
+            const getLevel = (score) => {
+                if (score <= 4) return 'low';
+                if (score <= 7) return 'mid';
+                return 'high';
+            };
+            
+            const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+            const p1 = getVal('p1'), p2 = getVal('p2'), p3 = getVal('p3');
+            const pmfText1 = getRandomItem(explanations.pmf.p1[getLevel(p1)]);
+            const pmfText2 = getRandomItem(explanations.pmf.p2[getLevel(p2)]);
+            const pmfText3 = getRandomItem(explanations.pmf.p3[getLevel(p3)]);
+
+            const l1 = getVal('l1');
+            const l2 = getVal('l2'), l3 = getVal('l3'), l4 = getVal('l4');
+            const resourceScore = (l2 + l3 + l4) / 3;
+            const leverageText1 = getRandomItem(explanations.leverage.l1[getLevel(l1)]);
+            const leverageText2 = getRandomItem(explanations.leverage.l2_l3_l4[getLevel(resourceScore)]);
+
+            const t1 = getVal('t1'), t2 = getVal('t2');
+            const t3 = getVal('t3'), t4 = getVal('t4');
+            const executionScore = (t1 + t2) / 2;
+            const visionScore = (t3 + t4) / 2;
+            const teamText1 = getRandomItem(explanations.team.t1_t2[getLevel(executionScore)]);
+            const teamText2 = getRandomItem(explanations.team.t3_t4[getLevel(visionScore)]);
+
+            const r1 = getVal('r1'), r2 = getVal('r2'), r3 = getVal('r3');
+            const riskScore = (r1 + r2 + r3) / 3;
+            const riskText = getRandomItem(explanations.risk.r1_r2_r3[getLevel(riskScore)]);
+
+            const fullExplanation = `
+**${explanations.summary_keys.pmf}** ${pmfText1} ${pmfText2} ${pmfText3}
+
+**${explanations.summary_keys.leverage}** ${leverageText1} ${leverageText2}
+
+**${explanations.summary_keys.team}** ${teamText1} ${teamText2}
+
+**${explanations.summary_keys.risk}** ${riskText}
+            `;
+
+            document.getElementById('smart-explanation').innerText = fullExplanation;
+        }
+
+        function calculate() {
+            const alpha = getVal('alpha');
+            const beta = getVal('beta');
+            const gamma = getVal('gamma');
+            const delta = getVal('delta');
+
+            const p1 = getVal('p1'), p2 = getVal('p2'), p3 = getVal('p3');
+            const pmfFinal = Math.pow(p1 * p2 * p3, 1/3);
+
+            const t1 = getVal('t1'), t2 = getVal('t2'), t3 = getVal('t3'), t4 = getVal('t4');
+            const teamFinal = Math.pow(t1 * t2 * t3 * t4, 1/4);
+
+            const l1 = getVal('l1'), l2 = getVal('l2'), l3 = getVal('l3'), l4 = getVal('l4');
+            const resourceAvg = Math.pow(l2 * l3 * l4, 1/3);
+            const leverageFinal = l1 * resourceAvg;
+
+            const r1 = getVal('r1'), r2 = getVal('r2'), r3 = getVal('r3');
+            const riskFinal =  (r1 + r2 + r3) / 3;
+
+            const numerator = Math.pow(pmfFinal, alpha) * Math.pow(leverageFinal, gamma);
+            const denominator = Math.pow(riskFinal, delta);
+            
+            const scale = numerator * (Math.pow(teamFinal, beta) / denominator);
+
+            document.getElementById('finalScale').textContent = Math.round(scale).toLocaleString();
+            generateExplanation();
+            updateInputColors();
+        }
+
+        function loadWeights(type) {
+            const weights = {
+                'default': { alpha: 1.3, beta: 1.2, gamma: 1.0, delta: 1.5 },
+                'deep_tech': { alpha: 1.0, beta: 1.5, gamma: 1.2, delta: 2.0 },
+                'hardware': { alpha: 1.2, beta: 1.2, gamma: 1.5, delta: 1.5 },
+                'dtc': { alpha: 1.5, beta: 1.2, gamma: 1.0, delta: 1.2 },
+                'extreme_leverage': { alpha: 1.0, beta: 1.2, gamma: 1.5, delta: 2.0 }
+            };
+            const selectedWeights = weights[type];
+            for (const key in selectedWeights) {
+                document.getElementById(key).value = selectedWeights[key];
+            }
+            calculate();
+        }
+
+        function loadCase(caseName) {
+            let values = {};
+            
+            if (caseName === 'notion') {
+                values = { p1: 9, p2: 9, p3: 9, t1: 9, t2: 8, t3: 9, t4: 9, l1: 8, l2: 5, l3: 4, l4: 9, r1: 5, r2: 3, r3: 2 };
+                loadWeights('default');
+            } else if (caseName === 'wework') {
+                values = { p1: 7, p2: 6, p3: 4, t1: 5, t2: 4, t3: 7, t4: 3, l1: 8, l2: 9, l3: 9, l4: 5, r1: 8, r2: 8, r3: 9 };
+                loadWeights('extreme_leverage');
+            }
+
+            for (const key in values) {
+                document.getElementById(key).value = values[key];
+            }
+
+            calculate();
+            updateInputColors();
+        }
+        
+        function addLiveCalculations() {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculate);
+            });
+
+            document.querySelectorAll('.btn-load[data-type]').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    loadWeights(event.target.dataset.type);
+                });
+            });
+        }
+
+        function saveSettings() {
+            const settings = {};
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                settings[input.id] = input.value;
+            });
+            localStorage.setItem('startupDashboardSettings', JSON.stringify(settings));
+            alert(currentLang === 'en' ? 'Settings saved!' : '設定已儲存！');
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('startupDashboardSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                for (const id in settings) {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        input.value = settings[id];
+                    }
+                }
+                calculate();
+                alert(currentLang === 'en' ? 'Settings loaded!' : '設定已讀取！');
+            } else {
+                alert(currentLang === 'en' ? 'No saved settings found.' : '找不到儲存的設定。');
+            }
+        }
+ 
+        function switchLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang === 'en' ? 'en' : 'zh-TW';
+            const elements = document.querySelectorAll('[data-lang-key]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-lang-key');
+                if (langData[lang] && langData[lang][key]) {
+                    el.innerHTML = langData[lang][key];
+                }
+            });
+            generateExplanation(); // Re-generate explanation in the new language
+        }
+
+         window.onload = () => {
+             calculate();
+             addLiveCalculations();
+             updateInputColors();
+             document.getElementById('saveSettings').addEventListener('click', saveSettings);
+             document.getElementById('loadSettings').addEventListener('click', loadSettings);
+             document.getElementById('lang-zh').addEventListener('click', () => switchLanguage('zh-TW'));
+             document.getElementById('lang-en').addEventListener('click', () => switchLanguage('en'));
+         };
+     </script>
+</body>
+</html>
