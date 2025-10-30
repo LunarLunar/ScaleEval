@@ -216,7 +216,7 @@
    <div class="footer-text">nowplaygames.com </div>
 
     <script>
-        let currentLang = 'zh-TW';
+        let currentLang = 'en';
 
         const langData = {
             "zh-TW": {
@@ -670,6 +670,7 @@
         }
 
          window.onload = () => {
+             switchLanguage('en'); // Set default language to English
              calculate();
              addLiveCalculations();
              updateInputColors();
